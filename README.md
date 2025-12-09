@@ -1,6 +1,11 @@
 # @poolfans/sdk
 
+[![npm version](https://img.shields.io/npm/v/@poolfans/sdk.svg)](https://www.npmjs.com/package/@poolfans/sdk)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 TypeScript SDK for deploying Clanker tokens with tokenized fee rewards via PoolFans.
+
+> **Production Ready** - Successfully tested on Base Mainnet. See [example transaction](https://basescan.org/tx/0x25440962eb164756dfb39c154d108029706336f1af57c4109af246a065ab912b).
 
 ## Features
 
@@ -158,14 +163,17 @@ console.log('Claimable:', position.claimableClanker, position.claimablePaired)
 ```typescript
 import { POOL_POSITIONS } from '@poolfans/sdk'
 
-// Standard 5-position (meme tokens)
+// Standard 5-position setup (matches successful Clanker V4 deployments)
+// tickLower: [-230400, -214000, -202000, -155000, -141000]
+// tickUpper: [-214000, -155000, -155000, -120000, -120000]
+// positionBps: [1000, 5000, 1500, 2000, 500] (10%, 50%, 15%, 20%, 5%)
 POOL_POSITIONS.Standard
 
-// Project setup (higher liquidity concentration)
+// Project setup - concentrated around launch price
 POOL_POSITIONS.Project
 
-// Legacy full-range (V2 style)
-POOL_POSITIONS.Legacy
+// Simple 2-position setup
+POOL_POSITIONS.Simple
 ```
 
 ### Fee Configs
@@ -201,13 +209,57 @@ VAULT_PRESETS.MediumVest
 VAULT_PRESETS.LongVest
 ```
 
-## Contract Addresses (Base)
+## Contract Addresses (Base Mainnet)
 
 | Contract | Address |
 |----------|---------|
-| V4 Tokenizer | `0xea8127533f7be6d04b3dba8f0a496f2dcfd27728` |
+| V4 Tokenizer Factory | `0xea8127533f7be6d04b3dba8f0a496f2dcfd27728` |
 | V3.1.0 Tokenizer | `0x50e2a7193c4ad03221f4b4e3e33cdf1a46671ced` |
+| Clanker V4 Deployer | `0xE85A59c628F7d27878ACeB4bf3b35733630083a9` |
+| Clanker V4 Hook | `0xd60D6B218116cFd801E28F78d011a203D2b068Cc` |
+| Fee Locker | `0x63D2DfEA64b3433F4071A98665bcD7Ca14d93496` |
+| MEV Module | `0xebB25BB797D82CB78E1bc70406b13233c0854413` |
 | WETH | `0x4200000000000000000000000000000000000006` |
+
+## Contract Functions
+
+### V4 Tokenizer Functions
+
+| Function | Description |
+|----------|-------------|
+| `tokenizeAndDeployV4Clanker(config, shareRecipients)` | Deploy new token with tokenized fees |
+| `finalizeTokenization(clankerToken, adminIndex)` | Complete tokenization after admin transfer |
+| `deployVault(clankerToken, feePreference)` | Deploy a revenue vault |
+| `computeVaultAddress(clankerToken, pairedToken, feePreference)` | Compute vault address |
+
+### V3.1.0 Tokenizer Functions
+
+| Function | Description |
+|----------|-------------|
+| `finalizeTokenization(clankerToken, adminIndex)` | Complete tokenization |
+| `deployVault(clankerToken, feePreference)` | Deploy a revenue vault |
+| `computeVaultAddress(clankerToken, pairedToken, feePreference)` | Compute vault address |
+| `getTokenizerVersion()` | Get tokenizer version |
+| `lpLocker()` | Get LP locker address |
+| `rescueTokens(token, amount, recipient)` | Rescue tokens (admin) |
+| `tokenizedParticipants(clankerToken)` | Get tokenized participants |
+
+### Constants
+
+| Constant | Description |
+|----------|-------------|
+| `BPS_DENOMINATOR` | Basis points denominator (10000) |
+| `BPS_TO_PERCENTAGE` | Conversion factor |
+| `SHARES_DECIMALS` | Decimals for share tokens |
+| `LP_LOCKER_V3_1_0` | LP Locker contract address |
+| `POSITION_MANAGER` | Position manager address |
+
+### Events
+
+| Event | Description |
+|-------|-------------|
+| `TokenizationFinalized` | Emitted when tokenization completes |
+| `TokensRescued` | Emitted when tokens are rescued |
 
 ## API Reference
 
