@@ -158,7 +158,7 @@ console.log('Claimable:', position.claimableClanker, position.claimablePaired)
 
 ## Custom Market Cap Deployment
 
-By default, Clanker tokens launch at ~30-40 ETH market cap using tick `-230400`. You can customize the starting market cap by adjusting the `tickIfToken0IsClanker` parameter and providing custom pool positions.
+By default, Clanker tokens launch at ~10 ETH market cap using tick `-230400`. You can customize the starting market cap by adjusting the `tickIfToken0IsClanker` parameter and providing custom pool positions.
 
 ### Understanding Ticks and Market Cap
 
@@ -172,9 +172,8 @@ tick = ln(price) / ln(1.0001)
 
 | Target Market Cap | Tick | Notes |
 |-------------------|------|-------|
-| ~40 ETH | -230400 | Standard Clanker default |
-| ~20 ETH | -223400 | Lower starting price |
-| ~10 ETH | -230400 | Standard (actual ~9.87 ETH) |
+| ~10 ETH | -230400 | Standard Clanker default |
+| ~20 ETH | -223400 | Higher starting price |
 
 ### Example: 20 ETH Market Cap
 
@@ -235,8 +234,8 @@ function calculateTickForMarketCap(marketCapEth: number): number {
 }
 
 // Examples:
+calculateTickForMarketCap(10)  // Returns ~-230400 (standard)
 calculateTickForMarketCap(20)  // Returns ~-223400
-calculateTickForMarketCap(40)  // Returns ~-230400
 ```
 
 ## Configuration Presets
