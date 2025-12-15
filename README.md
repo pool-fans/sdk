@@ -156,6 +156,89 @@ const position = await tokenizer.getUserPosition(vaultAddress, account.address)
 console.log('Claimable:', position.claimableClanker, position.claimablePaired)
 ```
 
+## Custom Market Cap Deployment
+
+By default, Clanker tokens launch at ~30-40 ETH market cap using tick `-230400`. You can customize the starting market cap by adjusting the `tickIfToken0IsClanker` parameter and providing custom pool positions.
+
+### Understanding Ticks and Market Cap
+
+The starting price (and thus market cap) is determined by the tick parameter:
+
+```
+Market Cap = Total Supply × Price per Token
+Price = 1.0001^tick (for very small prices, tick is negative)
+tick = ln(price) / ln(1.0001)
+```
+
+| Target Market Cap | Tick | Notes |
+|-------------------|------|-------|
+| ~40 ETH | -230400 | Standard Clanker default |
+| ~20 ETH | -223400 | Lower starting price |
+| ~10 ETH | -230400 | Standard (actual ~9.87 ETH) |
+
+### Example: 20 ETH Market Cap
+
+See [`test/deploy-20eth-mcap.ts`](./test/deploy-20eth-mcap.ts) for a complete working example.
+
+**Key insight**: The `tickIfToken0IsClanker` must be ≤ the lowest `tickLower` in your positions. If you want a higher tick (lower market cap), you need custom positions.
+
+```typescript
+import { PoolFansTokenizer } from '@poolfans/sdk'
+import type { PoolPosition } from '@poolfans/sdk'
+
+// Custom positions for 20 ETH market cap
+// The starting tick (-223400) must be <= lowest tickLower
+const positions: PoolPosition[] = [
+  { tickLower: -223400, tickUpper: -207000, positionBps: 1000 },  // 10% - Near price
+  { tickLower: -207000, tickUpper: -148000, positionBps: 5000 },  // 50% - Core liquidity
+  { tickLower: -195000, tickUpper: -148000, positionBps: 1500 },  // 15% - Mid range
+  { tickLower: -148000, tickUpper: -113000, positionBps: 2000 },  // 20% - Extended range
+  { tickLower: -134000, tickUpper: -113000, positionBps: 500 },   // 5% - Far range
+]
+
+const result = await tokenizer.deployWithTokenizedFees({
+  name: "My Token",
+  symbol: "MTK",
+  image: "",
+  tokenAdmin: account.address,
+  rewards: {
+    recipients: [{
+      recipient: account.address,
+      admin: account.address,
+      bps: 10000,  // 100%
+      token: "Both",
+    }],
+  },
+  pool: {
+    positions,
+    tickIfToken0IsClanker: -223400,  // ~20 ETH market cap
+  },
+})
+
+const { tokenAddress, vaultAddress } = await result.waitForTransaction()
+```
+
+**Verified deployment**: [0x840328aedc8b262aa26ff3fdad9fd4c3f2edfa48c88efb66bb14c8d24392cb6d](https://basescan.org/tx/0x840328aedc8b262aa26ff3fdad9fd4c3f2edfa48c88efb66bb14c8d24392cb6d)
+
+### Tick Calculation Helper
+
+```typescript
+function calculateTickForMarketCap(marketCapEth: number): number {
+  const totalSupply = 100_000_000_000 // 100B tokens
+  const pricePerToken = marketCapEth / totalSupply
+
+  // tick = ln(price) / ln(1.0001)
+  const tick = Math.log(pricePerToken) / Math.log(1.0001)
+
+  // Round to nearest 200 (tick spacing)
+  return Math.round(tick / 200) * 200
+}
+
+// Examples:
+calculateTickForMarketCap(20)  // Returns ~-223400
+calculateTickForMarketCap(40)  // Returns ~-230400
+```
+
 ## Configuration Presets
 
 ### Pool Positions
