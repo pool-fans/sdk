@@ -32,7 +32,7 @@ const PRIVATE_KEY = process.env.PRIVATE_KEY as `0x${string}`
 // You need a private RPC from Alchemy, Infura, QuickNode, etc.
 // Get a free one at: https://www.alchemy.com/chain-connect/chain/base
 const RPC_URLS = {
-  mainnet: process.env.BASE_RPC_URL || process.env.BASE_RPC || 'https://base-mainnet.g.alchemy.com/v2/GMcF3VVQXJXTG3KRY0isu',
+  mainnet: process.env.BASE_RPC_URL || process.env.BASE_RPC || 'https://base-mainnet.g.alchemy.com/v2/NMReGnuhB26zbu_-it3JS',
   testnet: process.env.base_sepolia_rpc_url || 'https://base-sepolia.g.alchemy.com/v2/demo',
 }
 

@@ -29,7 +29,7 @@ import type { PoolPosition } from '../src/types'
 // ============================================
 
 const PRIVATE_KEY = process.env.PRIVATE_KEY as `0x${string}`
-const RPC_URL = process.env.BASE_RPC_URL || 'https://base-mainnet.g.alchemy.com/v2/GMcF3VVQXJXTG3KRY0isu'
+const RPC_URL = process.env.BASE_RPC_URL || 'https://base-mainnet.g.alchemy.com/v2/NMReGnuhB26zbu_-it3JS'
 
 // ============================================
 // Token Configuration
