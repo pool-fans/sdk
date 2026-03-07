@@ -257,7 +257,10 @@ describe('PoolFansTokenizer', () => {
     })
 
     describe('token type conversion', () => {
-      it('should convert "Both" to 0', async () => {
+      const MOCK_VAULT = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Address
+
+      it('should convert "Both" to FeePreference 0 in lockerData', async () => {
+        mockPublicClient.readContract.mockResolvedValue(MOCK_VAULT)
         await tokenizer.deployWithTokenizedFees({
           name: 'Test',
           symbol: 'T',
@@ -269,11 +272,15 @@ describe('PoolFansTokenizer', () => {
           },
         })
 
+        expect(mockWalletClient.writeContract).toHaveBeenCalled()
         const callArgs = mockWalletClient.writeContract.mock.calls[0][0]
-        expect(callArgs.args[0].rewards.recipients[0].token).toBe(0)
+        // Config is args[0], shareRecipients is args[1]
+        expect(callArgs.args[1]).toEqual([MOCK_ADDRESS])
+        expect(callArgs.args[0].lockerConfig).toBeDefined()
       })
 
-      it('should convert "Paired" to 1', async () => {
+      it('should convert "Paired" to FeePreference 1 in lockerData', async () => {
+        mockPublicClient.readContract.mockResolvedValue(MOCK_VAULT)
         await tokenizer.deployWithTokenizedFees({
           name: 'Test',
           symbol: 'T',
@@ -285,11 +292,14 @@ describe('PoolFansTokenizer', () => {
           },
         })
 
+        expect(mockWalletClient.writeContract).toHaveBeenCalled()
         const callArgs = mockWalletClient.writeContract.mock.calls[0][0]
-        expect(callArgs.args[0].rewards.recipients[0].token).toBe(1)
+        expect(callArgs.args[0].lockerConfig).toBeDefined()
+        expect(callArgs.args[0].lockerConfig.rewardBps).toEqual([10000])
       })
 
-      it('should convert "Clanker" to 2', async () => {
+      it('should convert "Clanker" to FeePreference 2 in lockerData', async () => {
+        mockPublicClient.readContract.mockResolvedValue(MOCK_VAULT)
         await tokenizer.deployWithTokenizedFees({
           name: 'Test',
           symbol: 'T',
@@ -301,8 +311,10 @@ describe('PoolFansTokenizer', () => {
           },
         })
 
+        expect(mockWalletClient.writeContract).toHaveBeenCalled()
         const callArgs = mockWalletClient.writeContract.mock.calls[0][0]
-        expect(callArgs.args[0].rewards.recipients[0].token).toBe(2)
+        expect(callArgs.args[0].lockerConfig).toBeDefined()
+        expect(callArgs.args[0].lockerConfig.rewardRecipients).toEqual([MOCK_VAULT])
       })
     })
   })
@@ -391,7 +403,7 @@ describe('PoolFansTokenizer', () => {
         expect.objectContaining({
           address: CONTRACTS.V4_TOKENIZER,
           functionName: 'finalizeTokenization',
-          args: [pendingId, MOCK_ADDRESS],
+          args: [MOCK_ADDRESS, pendingId],
         })
       )
     })
@@ -543,8 +555,8 @@ describe('Constants', () => {
       expect(total).toBe(10000)
     })
 
-    it('Legacy positions should sum to 10000 bps', () => {
-      const total = POOL_POSITIONS.Legacy.reduce((sum, p) => sum + p.positionBps, 0)
+    it('Simple positions should sum to 10000 bps', () => {
+      const total = POOL_POSITIONS.Simple.reduce((sum, p) => sum + p.positionBps, 0)
       expect(total).toBe(10000)
     })
   })
