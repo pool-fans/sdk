@@ -240,12 +240,6 @@ async function main() {
     console.log(`   Revenue Vault: ${data.vaultAddress}`)
     console.log(`   Shares Token: ${data.sharesToken}`)
 
-    // Note about placeholder addresses
-    if (data.tokenAddress === '0x0000000000000000000000000000000000000000') {
-      console.log('\n⚠️  Note: Addresses shown as 0x0... need to be parsed from transaction logs.')
-      console.log('   Check the transaction on the explorer to see the actual deployed addresses.')
-    }
-
   } catch (err) {
     console.error(`\n❌ Transaction failed: ${(err as Error).message}`)
     console.log('Check the transaction on the explorer for details.')

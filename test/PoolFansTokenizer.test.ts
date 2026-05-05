@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { Address, Hash } from 'viem'
+import { decodeAbiParameters, parseAbiParameters } from 'viem'
 import { PoolFansTokenizer } from '../src/PoolFansTokenizer'
 import { POOL_POSITIONS, FEE_CONFIGS, CONTRACTS } from '../src/constants'
 import type { RewardRecipient } from '../src/types'
@@ -231,6 +232,35 @@ describe('PoolFansTokenizer', () => {
             functionName: 'tokenizeAndDeployV4Clanker',
           })
         )
+      })
+
+      it('should use the static fee hook and encode flat fees', async () => {
+        await tokenizer.deployWithTokenizedFees({
+          name: 'Static Fee Token',
+          symbol: 'SFT',
+          tokenAdmin: MOCK_ADDRESS,
+          rewards: {
+            recipients: [
+              { recipient: MOCK_ADDRESS, admin: MOCK_ADDRESS, bps: 10000, token: 'Both' },
+            ],
+          },
+          fees: FEE_CONFIGS.Static1Percent,
+        })
+
+        const callArgs = mockWalletClient.writeContract.mock.calls[0][0]
+        const poolConfig = callArgs.args[0].poolConfig
+        const [poolInit] = decodeAbiParameters(
+          parseAbiParameters('(address extension, bytes extensionData, bytes feeData)'),
+          poolConfig.poolData
+        )
+        const [clankerFee, pairedFee] = decodeAbiParameters(
+          parseAbiParameters('uint24, uint24'),
+          poolInit.feeData
+        )
+
+        expect(poolConfig.hook).toBe(CONTRACTS.V4_STATIC_HOOK)
+        expect(clankerFee).toBe(10000)
+        expect(pairedFee).toBe(10000)
       })
     })
 

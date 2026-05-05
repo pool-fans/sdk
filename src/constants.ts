@@ -17,6 +17,9 @@ export const CONTRACTS = {
   /** Clanker V4 Hook Contract */
   V4_HOOK: '0xd60D6B218116cFd801E28F78d011a203D2b068Cc' as Address,
 
+  /** Clanker V4 Static Fee Hook Contract */
+  V4_STATIC_HOOK: '0xb429d62f8f3bFFb98CdB9569533eA23bF0Ba28CC' as Address,
+
   /** Clanker Fee Locker */
   FEE_LOCKER: '0x63D2DfEA64b3433F4071A98665bcD7Ca14d93496' as Address,
 

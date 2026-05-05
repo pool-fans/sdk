@@ -17,6 +17,7 @@ import type {
   VaultInfo,
   UserPosition,
   RewardRecipient,
+  FeeConfig,
 } from './types'
 import {
   CONTRACTS,
@@ -107,7 +108,7 @@ export class PoolFansTokenizer {
       }
 
       // Build params matching ABI structure (with async vault address computation)
-      const { config, shareRecipients } = await this.buildDeployParamsAsync(options)
+      const { config, shareRecipients, predictedTokenAddress, vaultAddresses } = await this.buildDeployParamsAsync(options)
 
       // Log deployment params for debugging
       console.log('\n📋 Deployment Parameters:')
@@ -154,14 +155,15 @@ export class PoolFansTokenizer {
             hash: txHash,
           })
 
-          // Parse logs to extract addresses
-          // In production, decode the actual event logs
-          const tokenAddress = '0x0000000000000000000000000000000000000000' as Address // TODO: Parse from logs
-          const vaultAddress = '0x0000000000000000000000000000000000000000' as Address
-          const sharesToken = '0x0000000000000000000000000000000000000000' as Address
+          const vaultAddress = vaultAddresses[0]
+          const sharesToken = await this.publicClient.readContract({
+            address: vaultAddress,
+            abi: VAULT_ABI,
+            functionName: 'sharesToken',
+          }) as Address
 
           return {
-            tokenAddress,
+            tokenAddress: predictedTokenAddress,
             vaultAddress,
             sharesToken,
             txHash,
@@ -432,6 +434,8 @@ export class PoolFansTokenizer {
       }>
     }
     shareRecipients: Address[]
+    predictedTokenAddress: Address
+    vaultAddresses: Address[]
   }> {
     // Generate random salt for unique token address
     const salt = this.generateSalt()
@@ -466,10 +470,16 @@ export class PoolFansTokenizer {
     // Pool config
     const positions = options.pool?.positions || POOL_POSITIONS.Standard
     const pairedToken = options.pool?.pairedToken || CONTRACTS.WETH
-    const poolData = this.encodePoolDataV2()
+    const feeConfig = options.fees || {
+      type: 'dynamic' as const,
+      startFee: 500,
+      endFee: 100,
+      decayDuration: 3600,
+    }
+    const { hook, poolData } = this.buildPoolFeeConfig(feeConfig)
 
     const poolConfig = {
-      hook: CONTRACTS.V4_HOOK,
+      hook,
       pairedToken,
       tickIfToken0IsClanker: options.pool?.tickIfToken0IsClanker || -230400,
       tickSpacing: 200,
@@ -567,6 +577,8 @@ export class PoolFansTokenizer {
         extensionConfigs,
       },
       shareRecipients,
+      predictedTokenAddress: clankerAddress,
+      vaultAddresses,
     }
   }
 
@@ -637,37 +649,49 @@ export class PoolFansTokenizer {
     }) as Address
   }
 
-  /**
-   * Encode pool data for V2 hooks with dynamic fee configuration
-   */
-  private encodePoolDataV2(): `0x${string}` {
-    // Default dynamic fee configuration
-    const feeConfig = {
-      baseFee: 100, // 1% (10000 uniBps)
-      maxFee: 500, // 5% (50000 uniBps)
-      referenceTickFilterPeriod: 30, // 30 seconds
-      resetPeriod: 120, // 120 seconds
-      resetTickFilter: 200, // 200 bps
-      feeControlNumerator: 500000000,
-      decayFilterBps: 7500, // 75% decay rate
+  private buildPoolFeeConfig(fees: FeeConfig): { hook: Address; poolData: `0x${string}` } {
+    if (fees.type === 'static') {
+      const clankerFee = fees.clankerFee ?? 100
+      const pairedFee = fees.pairedFee ?? clankerFee
+      this.assertFeeRange('clankerFee', clankerFee, 0, 2000)
+      this.assertFeeRange('pairedFee', pairedFee, 0, 2000)
+
+      return {
+        hook: CONTRACTS.V4_STATIC_HOOK,
+        poolData: this.encodePoolInitializationData(
+          encodeAbiParameters(
+            parseAbiParameters('uint24, uint24'),
+            [clankerFee * 100, pairedFee * 100]
+          )
+        ),
+      }
     }
 
-    // Encode dynamic fee data
+    const baseFee = fees.endFee ?? 100
+    const maxFee = fees.startFee && fees.startFee <= 3000 ? fees.startFee : 500
+    this.assertFeeRange('endFee', baseFee, 25, 2000)
+    this.assertFeeRange('startFee', maxFee, 0, 3000)
+
     const feeData = encodeAbiParameters(
-      parseAbiParameters('uint256, uint256, uint256, uint256, uint256, uint256, uint256'),
+      parseAbiParameters('uint24, uint24, uint256, uint256, int24, uint256, uint24'),
       [
-        BigInt(feeConfig.baseFee * 100),
-        BigInt(feeConfig.maxFee * 100),
-        BigInt(feeConfig.referenceTickFilterPeriod),
-        BigInt(feeConfig.resetPeriod),
-        BigInt(feeConfig.resetTickFilter),
-        BigInt(feeConfig.feeControlNumerator),
-        BigInt(feeConfig.decayFilterBps),
+        baseFee * 100,
+        maxFee * 100,
+        30n,
+        BigInt(fees.decayDuration ?? 120),
+        200,
+        500000000n,
+        7500,
       ]
     )
 
-    // Wrap in pool initialization data for V2 hooks
-    // Format: { extension: address, extensionData: bytes, feeData: bytes }
+    return {
+      hook: CONTRACTS.V4_HOOK,
+      poolData: this.encodePoolInitializationData(feeData),
+    }
+  }
+
+  private encodePoolInitializationData(feeData: `0x${string}`): `0x${string}` {
     return encodeAbiParameters(
       parseAbiParameters('(address extension, bytes extensionData, bytes feeData)'),
       [{
@@ -676,6 +700,12 @@ export class PoolFansTokenizer {
         feeData,
       }]
     )
+  }
+
+  private assertFeeRange(name: string, value: number, min: number, max: number): void {
+    if (!Number.isFinite(value) || value < min || value > max) {
+      throw new Error(`${name} must be between ${min} and ${max} bps, got ${value}`)
+    }
   }
 
   /**
