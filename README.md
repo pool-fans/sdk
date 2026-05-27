@@ -30,33 +30,63 @@ bun add @poolfans/sdk viem
 
 ## Quick Start
 
+Start with a read-only Base mainnet client. This verifies PoolFans contract constants and revenue-token address derivation in a no-broadcast flow without a wallet, signer, private key, or transaction broadcast.
+
+### Read-only quickstart
+
+```typescript
+import { CONTRACTS, V4_TOKENIZER_ABI } from '@poolfans/sdk'
+import { createPublicClient, http, type Address } from 'viem'
+import { base } from 'viem/chains'
+
+const publicClient = createPublicClient({
+  chain: base,
+  transport: http(process.env.BASE_RPC_URL),
+})
+
+const exampleClanker = '0x0000000000000000000000000000000000000000' as Address
+
+const predictedVault = await publicClient.readContract({
+  address: CONTRACTS.V4_TOKENIZER,
+  abi: V4_TOKENIZER_ABI,
+  functionName: 'computeVaultAddress',
+  args: [exampleClanker, CONTRACTS.WETH, 1], // 1 = paired-token/WETH fee preference
+})
+
+console.log('Predicted PoolFans revenue vault:', predictedVault)
+```
+
+Read-only calls are the safest default for dashboards, agents, analytics jobs, and docs. Treat SDK-reported revenue and fee data as indexed/read-only source evidence unless your app separately proves live claimability; label unavailable or source-only balances as not live claimable balances, and make no yield or APR promise.
+
+### Wallet-write deployment
+
+Only create a wallet client inside an explicit operator flow after showing the exact Base mainnet call, recipients, value, fee mode, and vault/LP settings for wallet-confirmed review. PoolFans never needs your private key in a browser or agent prompt; if you use a private key in a backend script, keep it in local secret storage and never commit it.
+
 ```typescript
 import { PoolFansTokenizer, POOL_POSITIONS, FEE_CONFIGS } from '@poolfans/sdk'
 import { createWalletClient, createPublicClient, http } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { base } from 'viem/chains'
 
-// Setup clients
 const account = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`)
 
 const publicClient = createPublicClient({
   chain: base,
-  transport: http(),
+  transport: http(process.env.BASE_RPC_URL),
 })
 
 const walletClient = createWalletClient({
   account,
   chain: base,
-  transport: http(),
+  transport: http(process.env.BASE_RPC_URL),
 })
 
-// Initialize SDK
 const tokenizer = new PoolFansTokenizer({
   publicClient,
   walletClient,
 })
 
-// Deploy new token with tokenized fees
+// This broadcasts only after the wallet client signs and sends the transaction.
 const result = await tokenizer.deployWithTokenizedFees({
   name: "My Token",
   symbol: "MTK",
