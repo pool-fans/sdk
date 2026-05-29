@@ -21,7 +21,7 @@
 import { createWalletClient, createPublicClient, http, formatEther } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { base } from 'viem/chains'
-import { PoolFansTokenizer, POOL_POSITIONS } from '../src'
+import { PoolFansTokenizer, POOL_POSITIONS, FEE_CONFIGS } from '../src'
 import type { PoolPosition } from '../src/types'
 
 // ============================================
@@ -175,6 +175,7 @@ async function main() {
     image: TOKEN_CONFIG.image,
     tokenAdmin: account.address,
     rewards: { recipients },
+    fees: FEE_CONFIGS.Static1Percent,
     pool: {
       positions,
       tickIfToken0IsClanker: targetTick,
@@ -215,10 +216,6 @@ async function main() {
     console.log(`   Token: ${data.tokenAddress}`)
     console.log(`   Revenue Vault: ${data.vaultAddress}`)
     console.log(`   Shares Token: ${data.sharesToken}`)
-
-    if (data.tokenAddress === '0x0000000000000000000000000000000000000000') {
-      console.log('\n⚠️  Note: Check the transaction on BaseScan for actual deployed addresses.')
-    }
 
   } catch (err) {
     console.error(`\n❌ Transaction failed: ${(err as Error).message}`)
